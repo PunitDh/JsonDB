@@ -1,4 +1,4 @@
-const LOGGER = require("../logger");
+const LOGGER = require("./Logger");
 
 class ApplicationError extends Error {
   constructor(...args) {

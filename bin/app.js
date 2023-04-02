@@ -4,9 +4,9 @@ const app = express();
 const ejs = require("ejs");
 const path = require("path");
 const SETTINGS = require("../settings");
-const LOGGER = require("../logger");
+const LOGGER = require("./Logger");
 const DB = require("./DB");
-const errorhandler = require("../utils/errorhandler");
+const errorhandler = require("../middleware/errorhandler");
 require("dotenv").config();
 
 // Set view engine
@@ -19,13 +19,14 @@ app.use(express.static(path.join("views")));
 app.use(express.json());
 
 // Connect to database
-DB.connect("./db/jsondb.json").create();
+DB.connect("./db/jsondb.enc").create();
 DB.createTable({
   name: "users",
   columns: [
     { name: "id", type: "number", unique: true, required: true, primary: true },
     { name: "username", type: "string", unique: true, required: true },
     { name: "password", type: "string", required: true },
+    { name: "admin", type: "boolean", default: false },
   ],
 });
 DB.createTable({

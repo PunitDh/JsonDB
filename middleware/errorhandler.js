@@ -1,4 +1,4 @@
-const LOGGER = require("../logger");
+const LOGGER = require("../bin/Logger");
 
 module.exports = function (err, req, res, next) {
   LOGGER.error(err.stack);

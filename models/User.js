@@ -5,6 +5,7 @@ class User extends Model {
     super(data);
     this.username = data.username;
     this.password = data.password;
+    this.admin = data.admin;
   }
 }
 

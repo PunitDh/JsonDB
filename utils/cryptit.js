@@ -1,5 +1,5 @@
 /**
- *
+ * Generate a salt string based on salt rounds
  * @param {Number} saltRounds
  * @returns {String}
  */
@@ -28,9 +28,9 @@ function hashWithSalt(password, salt) {
   return Buffer.from(hash).toString("base64");
 }
 
-Number.prototype.isBetween = function (min, max) {
-  return this > min && this < max;
-};
+function isBetween(num, min, max) {
+  return num > min && num < max;
+}
 
 module.exports = {
   /**
@@ -39,11 +39,14 @@ module.exports = {
    * @param {Number} saltRounds
    * @returns {String}
    */
-  hashPassword: function (password, saltRounds = process.env.SALT_ROUNDS || 10) {
+  hashPassword: function (
+    password,
+    saltRounds = process.env.SALT_ROUNDS || 10
+  ) {
     const salt = generateSalt(saltRounds);
     const hashedPassword = hashWithSalt(password, salt);
-    const zeroPadded = saltRounds.isBetween(0, 10)
-      ? "0" + saltRounds
+    const zeroPadded = isBetween(Number(saltRounds), 0, 10)
+      ? "0" + saltRounds.toString()
       : saltRounds;
     return `$2b$${zeroPadded}$${salt}${hashedPassword}`;
   },

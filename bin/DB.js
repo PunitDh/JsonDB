@@ -5,6 +5,8 @@ const {
   IllegalTypeError,
   IllegalPrimaryKeyError,
 } = require("./errors");
+const Enkryptonite = require("../utils/enkryptonite");
+const { EncType } = require("./constants");
 
 Array.prototype.exclude = function (...exclusions) {
   return this.filter((item) => !exclusions.includes(item));
@@ -25,7 +27,15 @@ const DB = {
   data: null,
   connect: function (filename) {
     this.filename = filename;
-    this.data = JSON.parse(fs.readFileSync(filename, "utf-8") || "{}");
+    if (!fs.existsSync(this.filename)) {
+      fs.writeFileSync(this.filename, "", EncType.UTF8);
+    }
+    this.data = JSON.parse(
+      Enkryptonite.decrypt(
+        fs.readFileSync(filename, EncType.UTF8),
+        process.env.DB_SECRET_KEY
+      ) || "{}"
+    );
     return this;
   },
   create: function () {
@@ -73,7 +83,7 @@ const DB = {
   update: function (table) {
     this.tableChecker(table);
     return (id, data) => {
-      this.checkConstraints(table, data);
+      this.checkConstraints(table, data, id);
       this.data[table] = this.data[table].map((item) =>
         item.id == id ? { ...item, ...data } : item
       );
@@ -116,17 +126,29 @@ const DB = {
       return this.data[table];
     };
   },
-  checkConstraints: function (table, data) {
-    const required = this.data._schema[table]
+  /**
+   *
+   * @param {String} table
+   * @param {Object} data
+   */
+  checkConstraints: function (table, data, id) {
+    const requiredColumns = this.data._schema[table]
       .filter((col) => col.required)
       .map((col) => col.name)
       .exclude("id");
-
-    required.forEach((col) => {
+    requiredColumns.forEach((col) => {
       if (!Object.keys(data).includes(col)) {
         throw new RequiredValueViolationError(
-          `ERROR in column '${key}': Column '${col}' is required`
+          `ERROR in column '${col}': Column '${col}' is required`
         );
+      }
+    });
+    const defaultValueColumns = this.data._schema[table].filter((col) =>
+      col.hasOwnProperty("default")
+    );
+    defaultValueColumns.forEach((column) => {
+      if (data[column.name] === null || data[column.name] === undefined) {
+        data[column.name] = column.default;
       }
     });
 
@@ -139,6 +161,7 @@ const DB = {
           );
         }
       }
+
       if (column && column.type) {
         if (typeof value !== column.type) {
           const error = `ERROR in column '${
@@ -148,7 +171,7 @@ const DB = {
         }
       }
       if (column && column.unique) {
-        if (this.data[table].map((item) => item[key]).includes(value)) {
+        if (this.data[table].map((item) => item[key]).includes(value) && !id) {
           throw new UniqueConstraintViolationError(
             `ERROR in column '${column.name}': Value '${value}' violates unique constraint`
           );
@@ -160,10 +183,19 @@ const DB = {
     if (this.filename && this.data) {
       fs.writeFileSync(
         this.filename,
-        JSON.stringify(this.data),
-        "utf-8"
+        Enkryptonite.encrypt(
+          JSON.stringify(this.data),
+          process.env.DB_SECRET_KEY
+        ),
+        EncType.UTF8
       );
     }
+  },
+  visualize: function () {
+    if (this.filename && this.data) {
+      return this.data;
+    }
+    return null;
   },
 };
 

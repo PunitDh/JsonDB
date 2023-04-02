@@ -22,11 +22,12 @@ class Model {
   }
 
   static find(id) {
-    return this.asModel(DB.select(this.__tablename__)(id)[0]);
+    const result = DB.select(this.__tablename__)(id);
+    return this.asModel(result);
   }
 
   static findBy(obj) {
-    return this.asModel(DB.select(this.__tablename__)(obj)[0]);
+    return this.asModel(DB.select(this.__tablename__)({ ...obj })[0]);
   }
 
   static where(obj) {
