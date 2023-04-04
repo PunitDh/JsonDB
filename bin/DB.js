@@ -4,6 +4,9 @@ const {
   RequiredValueViolationError,
   IllegalTypeError,
   IllegalPrimaryKeyError,
+  UnknownTableError,
+  UnknownColumnError,
+  ForeignKeyConstraintError,
 } = require("./errors");
 const Enkryptonite = require("../utils/enkryptonite");
 const { EncType } = require("./constants");
@@ -57,6 +60,21 @@ const DB = {
       const error = `Table '${name}' cannot have more than one primary keys. Found: [${primaryKeys}]`;
       throw new IllegalPrimaryKeyError(error);
     }
+    const foreignKeyColumns = columns.filter((col) =>
+      col.hasOwnProperty("foreignKey")
+    );
+    foreignKeyColumns.forEach((column) => {
+      const { table, column: col } = column.foreignKey;
+      if (!this.tableExists(table)) {
+        const error = `ERROR in table name '${table}': No such table`;
+        throw new UnknownTableError(error);
+      }
+      const columnExists = this.columnExists(table, col);
+      if (!columnExists) {
+        const error = `ERROR in column name: Table '${table}' has no such column: '${col}'`;
+        throw new UnknownColumnError(error);
+      }
+    });
     this.data._schema[name] = columns;
     this.save();
   },
@@ -71,9 +89,9 @@ const DB = {
   insert: function (table) {
     this.tableChecker(table);
     return (data) => {
+      this.checkConstraints(table, data);
       const newId = this.data._seq[table] + 1;
       this.data._seq[table] += 1;
-      this.checkConstraints(table, data);
       const newData = { ...data, id: newId };
       this.data[table].push(newData);
       this.save();
@@ -105,18 +123,20 @@ const DB = {
         if (typeof where === "object") {
           const entries = Object.entries(where);
           const result = [];
-          for (const item of this.data[table]) {
-            let found = true;
-            for (const [column, value] of entries) {
-              if (item[column] == value) {
-                continue;
-              } else {
-                found = false;
-                break;
+          if (this.data[table]) {
+            for (const item of this.data[table]) {
+              let found = true;
+              for (const [column, value] of entries) {
+                if (item[column] == value) {
+                  continue;
+                } else {
+                  found = false;
+                  break;
+                }
               }
-            }
-            if (found) {
-              result.push(item);
+              if (found) {
+                result.push(item);
+              }
             }
           }
           return result;
@@ -125,6 +145,12 @@ const DB = {
       }
       return this.data[table];
     };
+  },
+  tableExists: function (table) {
+    return Boolean(this.data[table]);
+  },
+  columnExists: function (table, column) {
+    return Boolean(this.data._schema[table].find((col) => col.name === column));
   },
   /**
    *
@@ -149,6 +175,18 @@ const DB = {
     defaultValueColumns.forEach((column) => {
       if (data[column.name] === null || data[column.name] === undefined) {
         data[column.name] = column.default;
+      }
+    });
+    const foreignKeyColumns = this.data._schema[table].filter((col) =>
+      col.hasOwnProperty("foreignKey")
+    );
+    foreignKeyColumns.forEach(({ name, foreignKey }) => {
+      const referenceValue = this.data[foreignKey.table].find(
+        (object) => object[foreignKey.column] == data[name]
+      );
+      if (!referenceValue) {
+        const error = `ERROR in table '${table}': No such row exists in '${foreignKey.table}' table: '${foreignKey.column}'='${data[name]}'`;
+        throw new ForeignKeyConstraintError(error);
       }
     });
 

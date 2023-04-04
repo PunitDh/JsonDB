@@ -39,6 +39,44 @@ DB.createTable({
   ],
 });
 
+DB.createTable({
+  name: "carts",
+  columns: [
+    { name: "id", type: "number", unique: true, required: true, primary: true },
+    {
+      name: "user_id",
+      type: "number",
+      unique: true,
+      required: true,
+      foreignKey: { table: "users", column: "id" },
+    },
+  ],
+});
+
+DB.createTable({
+  name: "cartitems",
+  columns: [
+    { name: "id", type: "number", unique: true, required: true, primary: true },
+    {
+      name: "cart_id",
+      type: "number",
+      required: true,
+      foreignKey: { table: "carts", column: "id" },
+    },
+    {
+      name: "sneaker_id",
+      type: "number",
+      required: true,
+      foreignKey: { table: "sneakers", column: "id" },
+    },
+    {
+      name: "quantity",
+      type: "number",
+      default: 1,
+    },
+  ],
+});
+
 // Custom Middleware
 app.use("/", appRouter);
 

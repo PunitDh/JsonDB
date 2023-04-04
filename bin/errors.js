@@ -31,9 +31,30 @@ class IllegalPrimaryKeyError extends ApplicationError {
   }
 }
 
+class UnknownTableError extends ApplicationError {
+  constructor(...args) {
+    super(...args);
+  }
+}
+
+class UnknownColumnError extends ApplicationError {
+  constructor(...args) {
+    super(...args);
+  }
+}
+
+class ForeignKeyConstraintError extends ApplicationError {
+  constructor(...args) {
+    super(...args);
+  }
+}
+
 module.exports = {
   UniqueConstraintViolationError,
   RequiredValueViolationError,
   IllegalTypeError,
   IllegalPrimaryKeyError,
+  UnknownTableError,
+  UnknownColumnError,
+  ForeignKeyConstraintError
 };
