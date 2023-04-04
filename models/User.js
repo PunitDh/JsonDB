@@ -1,4 +1,5 @@
 const Model = require("../bin/Model");
+const Cart = require("./Cart");
 
 class User extends Model {
   constructor(data = {}) {
@@ -6,6 +7,10 @@ class User extends Model {
     this.username = data.username;
     this.password = data.password;
     this.admin = data.admin;
+  }
+
+  get cart() {
+    return Cart.findBy({ user_id: this.id });
   }
 }
 

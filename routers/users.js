@@ -16,6 +16,16 @@ users.get("/", (req, res, next) => {
   }
 });
 
+users.get("/cart", Restricted(), (req, res, next) => {
+  try {
+    const cart = req.user && req.user.cart.withItems();
+    if (!cart) return res.status(404).send("This user has no cart");
+    return res.status(200).send(cart);
+  } catch (e) {
+    next(e);
+  }
+});
+
 users.post("/register", (req, res, next) => {
   try {
     if (req.body.password !== req.body.passwordConfirmation) {
@@ -35,7 +45,10 @@ users.post("/register", (req, res, next) => {
 users.post("/login", (req, res, next) => {
   try {
     const user = User.findBy({ username: req.body.username });
-    if (!user) return res.status(404).send("User not found");
+    if (!user)
+      return res
+        .status(404)
+        .send(`User with username '${req.body.username}' was not found`);
     if (!verifyPassword(req.body.password, user.password))
       return res.status(401).send("Wrong password");
     return res.status(201).send(JWT.sign(user.exclude("password")));
@@ -47,6 +60,10 @@ users.post("/login", (req, res, next) => {
 users.put("/toggle-admin/:id", Restricted(), (req, res, next) => {
   try {
     const user = User.find(req.params.id);
+    if (!user)
+      return res
+        .status(404)
+        .send(`User with id '${req.params.id}' was not found`);
     user.admin = !user.admin || false;
     user.save();
     return res.status(201).send(user.exclude("password"));
@@ -84,6 +101,10 @@ users.put("/", Secured(), (req, res, next) => {
 users.delete("/:id", Restricted(), (req, res, next) => {
   try {
     const user = User.delete(req.params.id);
+    if (!user)
+      return res
+        .status(404)
+        .send(`User with id '${req.params.id}' was not found`);
     return res.status(200).send(user.exclude("password"));
   } catch (e) {
     next(e);
