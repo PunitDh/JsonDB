@@ -5,7 +5,7 @@ const ejs = require("ejs");
 const path = require("path");
 const SETTINGS = require("../settings");
 const LOGGER = require("./Logger");
-const DB = require("./DB");
+const JsonDB = require("./JsonDB");
 const errorhandler = require("../middleware/errorhandler");
 require("dotenv").config();
 
@@ -19,8 +19,9 @@ app.use(express.static(path.join("views")));
 app.use(express.json());
 
 // Connect to database
-DB.connect("./db/jsondb.enc").create();
-DB.createTable({
+const db = new JsonDB();
+db.connect("./db/jsondb.enc").create();
+db.createTable({
   name: "users",
   columns: [
     { name: "id", type: "number", unique: true, required: true, primary: true },
@@ -29,7 +30,7 @@ DB.createTable({
     { name: "admin", type: "boolean", default: false },
   ],
 });
-DB.createTable({
+db.createTable({
   name: "sneakers",
   columns: [
     { name: "id", type: "number", unique: true, required: true, primary: true },
@@ -39,7 +40,7 @@ DB.createTable({
   ],
 });
 
-DB.createTable({
+db.createTable({
   name: "carts",
   columns: [
     { name: "id", type: "number", unique: true, required: true, primary: true },
@@ -53,7 +54,7 @@ DB.createTable({
   ],
 });
 
-DB.createTable({
+db.createTable({
   name: "cartitems",
   columns: [
     { name: "id", type: "number", unique: true, required: true, primary: true },
