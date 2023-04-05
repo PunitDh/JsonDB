@@ -19,8 +19,9 @@ class Cart extends Model {
       };
     });
     this.sneakers = sneakers;
-    this.total = +sneakers
-      .reduce((acc, cur) => +acc.subTotal + cur.subTotal)
+    this.total = +this.sneakers
+      .map((sneaker) => +sneaker.subTotal)
+      .reduce((acc, cur) => acc + cur, 0)
       .toFixed(2);
     return this;
   }

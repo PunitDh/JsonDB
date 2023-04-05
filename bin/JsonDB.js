@@ -9,7 +9,7 @@ const {
   ForeignKeyConstraintError,
 } = require("./errors");
 const Enkryptonite = require("../utils/enkryptonite");
-const { EncType } = require("./constants");
+const { EncType, OnDeleteActions } = require("./constants");
 
 Array.prototype.exclude = function (...exclusions) {
   return this.filter((item) => !exclusions.includes(item));
@@ -50,7 +50,7 @@ class JsonDB {
       tables: this.#data.tables || [],
       _seq: this.#data._seq || {},
     };
-    this.#save();
+    this.save();
     return this;
   }
 
@@ -74,25 +74,28 @@ class JsonDB {
     );
     foreignKeyColumns.forEach((column) => {
       const { table, column: col } = column.foreignKey;
-      if (!this.#tableExists(table)) {
+      if (!this.tableExists(table)) {
         const error = `ERROR in table name '${table}': No such table`;
         throw new UnknownTableError(error);
       }
-      const columnExists = this.#columnExists(table, col);
+      const columnExists = this.columnExists(table, col);
       if (!columnExists) {
         const error = `ERROR in column name: Table '${table}' has no such column: '${col}'`;
         throw new UnknownColumnError(error);
       }
     });
     this.#data._schema[name] = columns;
-    this.#save();
+    if (!this.tableExists(name)) {
+      this.#data[name] = [];
+    }
+    this.save();
   }
 
   /**
    * Checks if a table exists - if not, creates it
    * @param {String} table
    */
-  #tableChecker(table) {
+  tableChecker(table) {
     if (!this.#data[table]) {
       this.#data[table] = [];
     }
@@ -107,14 +110,14 @@ class JsonDB {
    * @returns {Function}
    */
   insert(table) {
-    this.#tableChecker(table);
+    this.tableChecker(table);
     return (data) => {
-      this.#checkConstraints(table, data);
+      this.checkConstraints(table, data);
       const newId = this.#data._seq[table] + 1;
       this.#data._seq[table] += 1;
       const newData = { ...data, id: newId };
       this.#data[table].push(newData);
-      this.#save();
+      this.save();
       return newData;
     };
   }
@@ -125,13 +128,13 @@ class JsonDB {
    * @returns {Function}
    */
   update(table) {
-    this.#tableChecker(table);
+    this.tableChecker(table);
     return (id, data) => {
-      this.#checkConstraints(table, data, id);
+      this.checkConstraints(table, data, id);
       this.#data[table] = this.#data[table].map((item) =>
         item.id == id ? { ...item, ...data } : item
       );
-      this.#save();
+      this.save();
       return this.#data[table].find((m) => m.id == id);
     };
   }
@@ -144,8 +147,40 @@ class JsonDB {
   delete(table) {
     return (id) => {
       const item = this.#data[table].find((m) => m.id == id);
+      const foreignKeyReferences = this.findForeignKeys(table, "id");
+
+      if (foreignKeyReferences.length) {
+        foreignKeyReferences.forEach((reference) => {
+          const onDeleteAction =
+            reference.onDelete &&
+            reference.onDelete.split("_").join(" ").toLowerCase();
+
+          if (onDeleteAction) {
+            switch (onDeleteAction) {
+              case OnDeleteActions.CASCADE:
+                this.#data[reference.table] = this.#data[
+                  reference.table
+                ].filter((m) => m[reference.column] != id);
+                break;
+              case OnDeleteActions.SET_NULL:
+                this.#data[reference.table] = this.#data[reference.table].map(
+                  (item) =>
+                    item[reference.column] == id
+                      ? { ...item, [reference.column]: null }
+                      : item
+                );
+                break;
+              default:
+                break;
+            }
+          } else {
+            const message = `ERROR: Foreign key constraint failed: id '${id}' is referenced in  '${reference.table}' table '${reference.column}' column.`;
+            throw new ForeignKeyConstraintError(message);
+          }
+        });
+      }
       this.#data[table] = this.#data[table].filter((m) => m.id != id);
-      this.#save();
+      this.save();
       return item;
     };
   }
@@ -186,11 +221,23 @@ class JsonDB {
   }
 
   /**
+   * Checks if a given value is a foreign key
+   * @param {String} table
+   * @param {String} column
+   */
+  findForeignKeys(table, column) {
+    return this.getAllForeignKeys().filter(
+      ({ referenceTable, referenceColumn }) =>
+        referenceTable === table && referenceColumn === column
+    );
+  }
+
+  /**
    * Checks if a table exists in the database
    * @param {String} table
    * @returns {Boolean}
    */
-  #tableExists(table) {
+  tableExists(table) {
     return Boolean(this.#data[table]);
   }
 
@@ -200,9 +247,35 @@ class JsonDB {
    * @param {String} column
    * @returns {Boolean}
    */
-  #columnExists(table, column) {
+  columnExists(table, column) {
     return Boolean(
       this.#data._schema[table].find((col) => col.name === column)
+    );
+  }
+
+  getAllForeignKeys() {
+    const foreignKeys = [];
+    Object.entries(this.#data._schema).forEach(([table, columns]) => {
+      const fKeys = columns.filter((column) =>
+        column.hasOwnProperty("foreignKey")
+      );
+      foreignKeys.push(
+        fKeys.map((col) => ({
+          table,
+          column: col.name,
+          referenceTable: col.foreignKey.table,
+          referenceColumn: col.foreignKey.column,
+          onDelete: col.foreignKey.onDelete,
+          onUpdate: col.foreignKey.onUpdate,
+        }))
+      );
+    });
+    return foreignKeys.flat();
+  }
+
+  getForeignKeys(table) {
+    return this.#data._schema[table].filter((column) =>
+      column.hasOwnProperty("foreignKey")
     );
   }
 
@@ -212,7 +285,7 @@ class JsonDB {
    * @param {Object} data
    * @param {Number} id
    */
-  #checkConstraints(table, data, id) {
+  checkConstraints(table, data, id) {
     const requiredColumns = this.#data._schema[table]
       .filter((col) => col.required)
       .map((col) => col.name)
@@ -276,7 +349,7 @@ class JsonDB {
   /**
    * Saves the database to local disk
    */
-  #save() {
+  save() {
     if (this.#filename && this.#data) {
       fs.writeFileSync(
         this.#filename,
@@ -300,6 +373,5 @@ class JsonDB {
     return null;
   }
 }
-
 
 module.exports = JsonDB;

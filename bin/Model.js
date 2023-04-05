@@ -1,4 +1,4 @@
-const DB = require("./db");
+const DB = require("./DB");
 const pluralize = require("pluralize");
 
 class Model {

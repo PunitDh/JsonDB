@@ -16,9 +16,9 @@ users.get("/", (req, res, next) => {
   }
 });
 
-users.get("/cart", Restricted(), (req, res, next) => {
+users.get("/cart", Secured(), (req, res, next) => {
   try {
-    const cart = req.user && req.user.cart.withItems();
+    const cart = req.user && req.user.cart && req.user.cart.withItems();
     if (!cart) return res.status(404).send("This user has no cart");
     return res.status(200).send(cart);
   } catch (e) {

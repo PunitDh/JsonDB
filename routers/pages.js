@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const DB = require("../bin/db");
+const DB = require("../bin/DB");
 const Restricted = require("../decorators/Restricted");
 
 const pages = Router();
