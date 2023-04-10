@@ -6,6 +6,7 @@ const path = require("path");
 const SETTINGS = require("../settings");
 const LOGGER = require("./Logger");
 const errorhandler = require("../middleware/errorhandler");
+const routeLogger = require("../middleware/routeLogger");
 require("dotenv").config();
 
 // Set view engine
@@ -19,10 +20,13 @@ app.use(express.json());
 
 // Connect to database
 
-
 // Custom Middleware
+app.use(routeLogger());
+
+// Router
 app.use("/", appRouter);
 
+// Error handlers
 app.use(errorhandler);
 
 app.get("/403", function (req, res) {

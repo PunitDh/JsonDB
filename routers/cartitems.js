@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const CartItem = require("../models/CartItem");
 const Secured = require("../decorators/Secured");
+const Restricted = require("../decorators/Restricted");
 
 const cartItems = Router();
 
@@ -62,6 +63,12 @@ cartItems.delete("/", (req, res, next) => {
   cartItem.quantity -= 1;
   cartItem.save();
   return res.status(201).send(cartItem);
+});
+
+cartItems.delete("/all", Restricted(), (req, res, next) => {
+  const cartItemIds = CartItem.all().map((item) => item.id);
+  cartItemIds.forEach((id) => CartItem.delete(id));
+  return res.status(200).send(cartItemIds);
 });
 
 module.exports = cartItems;

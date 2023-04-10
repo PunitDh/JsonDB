@@ -45,7 +45,7 @@ DB.createTable({
       name: "cart_id",
       type: "number",
       required: true,
-      foreignKey: { table: "carts", column: "id", onDelete: "set null" },
+      foreignKey: { table: "carts", column: "id", onDelete: "cascade" },
     },
     {
       name: "sneaker_id",

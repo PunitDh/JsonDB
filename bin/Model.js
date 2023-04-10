@@ -18,7 +18,7 @@ class Model {
   }
 
   static all() {
-    const data = DB.select(this.__tablename__)() || []
+    const data = DB.select(this.__tablename__)() || [];
     return data.map((n) => this.asModel(n));
   }
 

@@ -10,10 +10,7 @@ const {
 } = require("./errors");
 const Enkryptonite = require("../utils/enkryptonite");
 const { EncType, OnDeleteActions } = require("./constants");
-
-Array.prototype.exclude = function (...exclusions) {
-  return this.filter((item) => !exclusions.includes(item));
-};
+const { listOf } = require("./domain/List");
 
 class JsonDB {
   #filename = "";
@@ -47,7 +44,7 @@ class JsonDB {
     this.#data = {
       ...this.#data,
       _schema: this.#data._schema || {},
-      tables: this.#data.tables || [],
+      tables: this.#data.tables || listOf(),
       _seq: this.#data._seq || {},
     };
     this.save();
@@ -84,9 +81,9 @@ class JsonDB {
         throw new UnknownColumnError(error);
       }
     });
-    this.#data._schema[name] = columns;
+    this.#data._schema[name] = listOf(...columns);
     if (!this.tableExists(name)) {
-      this.#data[name] = [];
+      this.#data[name] = listOf();
     }
     this.save();
   }
@@ -97,7 +94,7 @@ class JsonDB {
    */
   tableChecker(table) {
     if (!this.#data[table]) {
-      this.#data[table] = [];
+      this.#data[table] = listOf();
     }
     if (!this.#data._seq[table]) {
       this.#data._seq[table] = 0;
@@ -195,7 +192,7 @@ class JsonDB {
       if (where) {
         if (typeof where === "object") {
           const entries = Object.entries(where);
-          const result = [];
+          const result = listOf();
           if (this.#data[table]) {
             for (const item of this.#data[table]) {
               let found = true;
@@ -216,7 +213,7 @@ class JsonDB {
         }
         return this.#data[table].find((m) => m.id == where);
       }
-      return this.#data[table];
+      return listOf(...this.#data[table]);
     };
   }
 
@@ -254,7 +251,7 @@ class JsonDB {
   }
 
   getAllForeignKeys() {
-    const foreignKeys = [];
+    const foreignKeys = listOf();
     Object.entries(this.#data._schema).forEach(([table, columns]) => {
       const fKeys = columns.filter((column) =>
         column.hasOwnProperty("foreignKey")
@@ -286,7 +283,7 @@ class JsonDB {
    * @param {Number} id
    */
   checkConstraints(table, data, id) {
-    const requiredColumns = this.#data._schema[table]
+    const requiredColumns = listOf(...this.#data._schema[table])
       .filter((col) => col.required)
       .map((col) => col.name)
       .exclude("id");

@@ -1,16 +1,28 @@
 const Enkryptonite = {
-  encrypt: function (str, secretKey) {
+  /**
+   * Encrypts data using a secret key
+   * @param {String} stringData
+   * @param {String} secretKey
+   * @returns {String}
+   */
+  encrypt: function (stringData, secretKey) {
     let encryptedStr = "";
-    for (let i = 0; i < str.length; i++) {
+    for (let i = 0; i < stringData.length; i++) {
       let charCode =
-        str.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
+        stringData.charCodeAt(i) ^ secretKey.charCodeAt(i % secretKey.length);
       encryptedStr += String.fromCharCode(charCode);
     }
     return Buffer.from(encryptedStr).toString("base64");
   },
 
-  decrypt: function (str, secretKey) {
-    const converted = Buffer.from(str, "base64").toString();
+  /**
+   * Decrypts data using the secret key
+   * @param {String} encryptedString
+   * @param {String} secretKey
+   * @returns {String}
+   */
+  decrypt: function (encryptedString, secretKey) {
+    const converted = Buffer.from(encryptedString, "base64").toString();
     let decryptedStr = "";
     for (let i = 0; i < converted.length; i++) {
       let charCode =
